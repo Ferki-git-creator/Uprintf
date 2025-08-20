@@ -227,7 +227,7 @@ static char* u_utoa(uint64_t value, char* str, int base, bool uppercase) {
     
     *ptr = '\0';
     u_strrev(low, ptr - 1);
-    return str;
+    return ptr;
 }
 
 static char* u_itoa(int64_t value, char* str, int base, bool uppercase) {
