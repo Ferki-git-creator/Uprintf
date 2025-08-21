@@ -615,8 +615,7 @@ static int u_parse_format(u_output_cb_t output_cb, void* ctx, const char** fmt, 
         
         // Output sign
         if (sign) {
-            output_cb('-', ctx);
-            chars_written++;
+            // sign already output as part of u_itoa in float and integer cases.
         } else if (flags & U_FLAG_FORCE_SIGN) {
             output_cb('+', ctx);
             chars_written++;
