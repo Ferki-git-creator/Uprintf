@@ -1,0 +1,17 @@
+THANKS.txt
+-----------
+
+Big thanks to everyone who has contributed to this project, supported it, or simply inspired others along the way! Your stars, feedback, and contributions keep this project alive and growing 💜
+
+⭐ Major Stars and Community Drivers:
+- Vladimír Vondruš (mosra) — creator of Magnum. Thank you for starring this repository and for inspiring the community with your amazing work. Your recognition gave a huge boost to this project.
+- Nicholas Ochoa (nicholas‑ochoa) — creator of OpenSC2K. Thank you for showing support by starring the project and for motivating others to get involved. Your acknowledgment means a lot.
+- skyformat99 — creator of books‑1, a repository with 1.1k stars. Thank you for giving attention to this project and for showing encouragement. Your support strengthens the community around this work.
+
+✨ Contributors (PRs, fixes, features):
+- Stéphane Gourichon (fidergo-stephane-gourichon) — thank you for submitting 2 pull requests and opening 2 issues. Your active contributions directly improved the project and helped fix important problems. Your effort is deeply appreciated.
+
+🙏 Community Motivation & Support:
+- [none] — everyone who shared the project, gave feedback, tested features, or encouraged us from the very beginning. Even if not listed here, your support matters and is valued deeply.
+
+You all make this project shine. Massive thanks to each and every one of you!
