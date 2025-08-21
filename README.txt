@@ -110,6 +110,18 @@ Note on u_snprintf: This function returns the number of characters actually
 written to the buffer, not the number that would be written if the buffer was
 large enough (unlike standard snprintf).
 
+
+------------------------------------------------------------------------------=
+SUPPORT THE PROJECT
+------------------------------------------------------------------------------=
+
+If you find this library useful, please consider supporting its development:
+
+  [ https://ko-fi.com/ferki ]
+
+Your support helps maintain and improve this software!
+
+
 ------------------------------------------------------------------------------=
 LICENSE:
 ------------------------------------------------------------------------------=
