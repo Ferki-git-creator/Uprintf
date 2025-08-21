@@ -262,8 +262,9 @@ static char* u_ftoa(double value, char* str, int precision, char decimal_point) 
     int64_t int_part = (int64_t)value;
     value -= int_part;
     
-    // Convert integer part
-    ptr = u_itoa(int_part, ptr, 10, false);
+    // Convert integer part and advance pointer
+    char* int_str = u_itoa(int_part, ptr, 10, false);
+    ptr += u_strlen(int_str); // Advance to the end of the integer part
     
     // Fractional part
     if (precision > 0) {
