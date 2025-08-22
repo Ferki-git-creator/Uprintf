@@ -1,7 +1,7 @@
 /**
  * @file uprintf.h
  * @brief Universal platform-independent printf implementation
- * @version 1.0
+ * @version 1.2
  * @author Ferki
  * @date 2023
  * 
@@ -25,6 +25,7 @@
  *   - Buffer functions (sprintf, snprintf)
  *   - No dynamic memory allocation
  *   - Header-only implementation
+ *   - Error checking and safety improvements
  */
 
 #ifndef UPRINTF_H
@@ -71,7 +72,7 @@ typedef int (*u_format_handler_t)(u_output_cb_t output_cb, void* ctx, va_list* a
  * @param ctx Context pointer for callback
  * @param fmt Format string
  * @param ... Arguments to format
- * @return Number of characters written
+ * @return Number of characters written, or negative value on error
  */
 int u_printf(u_output_cb_t output_cb, void* ctx, const char* fmt, ...);
 
@@ -81,7 +82,7 @@ int u_printf(u_output_cb_t output_cb, void* ctx, const char* fmt, ...);
  * @param ctx Context pointer for callback
  * @param fmt Format string
  * @param args Variable arguments list
- * @return Number of characters written
+ * @return Number of characters written, or negative value on error
  */
 int u_vprintf(u_output_cb_t output_cb, void* ctx, const char* fmt, va_list args);
 
@@ -105,7 +106,8 @@ int u_unregister_format_handler(char specifier);
  * @param buffer Output buffer
  * @param fmt Format string
  * @param ... Arguments to format
- * @return Number of characters written (excluding null terminator)
+ * @return Number of characters written (excluding null terminator),
+ *         or negative value on error
  */
 int u_sprintf(char* buffer, const char* fmt, ...);
 
@@ -115,11 +117,8 @@ int u_sprintf(char* buffer, const char* fmt, ...);
  * @param size Buffer size
  * @param fmt Format string
  * @param ... Arguments to format
- * @return Number of characters written (excluding null terminator)
- * 
- * @note This function returns the number of characters actually written to
- *       the buffer, not the number that would be written if the buffer was
- *       large enough (unlike standard snprintf).
+ * @return Number of characters actually written to buffer (excluding null terminator),
+ *         or negative value on error
  */
 int u_snprintf(char* buffer, size_t size, const char* fmt, ...);
 
@@ -146,7 +145,7 @@ void u_set_default_output(u_output_cb_t output_cb, void* ctx);
  * @brief Simplified printf using default output handler
  * @param fmt Format string
  * @param ... Arguments to format
- * @return Number of characters written
+ * @return Number of characters written, or negative value on error
  */
 int u_printf_simple(const char* fmt, ...);
 
@@ -197,12 +196,16 @@ static struct {
 
 // Internal functions
 static size_t u_strlen(const char* str) {
+    if (!str) return 0;
+    
     const char* s;
     for (s = str; *s; ++s);
     return (s - str);
 }
 
 static void u_strrev(char* begin, char* end) {
+    if (!begin || !end || begin >= end) return;
+    
     while (begin < end) {
         char temp = *begin;
         *begin++ = *end;
@@ -211,8 +214,8 @@ static void u_strrev(char* begin, char* end) {
 }
 
 static char* u_utoa(uint64_t value, char* str, int base, bool uppercase) {
-    if (base < 2 || base > 36) {
-        *str = '\0';
+    if (!str || base < 2 || base > 36) {
+        if (str) *str = '\0';
         return str;
     }
 
@@ -231,8 +234,8 @@ static char* u_utoa(uint64_t value, char* str, int base, bool uppercase) {
 }
 
 static char* u_itoa(int64_t value, char* str, int base, bool uppercase) {
-    if (base < 2 || base > 36) {
-        *str = '\0';
+    if (!str || base < 2 || base > 36) {
+        if (str) *str = '\0';
         return str;
     }
 
@@ -248,9 +251,34 @@ static char* u_itoa(int64_t value, char* str, int base, bool uppercase) {
 
 #if UPRINTF_FLOAT_SUPPORT
 static char* u_ftoa(double value, char* str, int precision, char decimal_point) {
+    if (!str) return str;
+    
     if (precision < 0) precision = 6;
+    if (precision > UPRINTF_BUFFER_SIZE - 16) precision = UPRINTF_BUFFER_SIZE - 16;
     
     char* ptr = str;
+    
+    // Handle special cases
+    if (value != value) { // NaN
+        const char* nan_str = "nan";
+        while (*nan_str) *ptr++ = *nan_str++;
+        *ptr = '\0';
+        return str;
+    }
+    
+    if (value == 1.0/0.0) { // +Inf
+        const char* inf_str = "inf";
+        while (*inf_str) *ptr++ = *inf_str++;
+        *ptr = '\0';
+        return str;
+    }
+    
+    if (value == -1.0/0.0) { // -Inf
+        const char* inf_str = "-inf";
+        while (*inf_str) *ptr++ = *inf_str++;
+        *ptr = '\0';
+        return str;
+    }
     
     // Handle negative numbers
     if (value < 0) {
@@ -283,6 +311,11 @@ static char* u_ftoa(double value, char* str, int precision, char decimal_point) 
             int digit = (int)value;
             *ptr++ = '0' + digit;
             value -= digit;
+            
+            // Prevent buffer overflow
+            if (ptr - str >= UPRINTF_BUFFER_SIZE - 1) {
+                break;
+            }
         }
     }
     
@@ -292,8 +325,10 @@ static char* u_ftoa(double value, char* str, int precision, char decimal_point) 
 #endif
 
 static void u_output_str(u_output_cb_t output_cb, void* ctx, const char* str, int max_len) {
-    if (!str) {
-        u_output_str(output_cb, ctx, "(null)", max_len);
+    if (!output_cb || !str) {
+        if (!str && output_cb) {
+            u_output_str(output_cb, ctx, "(null)", max_len);
+        }
         return;
     }
     
@@ -303,13 +338,17 @@ static void u_output_str(u_output_cb_t output_cb, void* ctx, const char* str, in
 }
 
 static void u_output_repeat(u_output_cb_t output_cb, void* ctx, char c, int count) {
+    if (!output_cb || count <= 0) return;
+    
     for (int i = 0; i < count; i++) {
         output_cb(c, ctx);
     }
 }
 
 static int u_parse_format(u_output_cb_t output_cb, void* ctx, const char** fmt, va_list* args) {
-    const char* start = *fmt;
+    if (!output_cb || !fmt || !*fmt || !args) return 0;
+    
+    const char* format_start = *fmt; // Remember start of format specifier
     int chars_written = 0;
     unsigned int flags = 0;
     int width = -1;
@@ -386,6 +425,11 @@ static int u_parse_format(u_output_cb_t output_cb, void* ctx, const char** fmt, 
     // Parse specifier
     char specifier = **fmt;
     if (!specifier) {
+        // No specifier found - output the entire format sequence
+        output_cb('%', ctx);
+        chars_written++;
+        u_output_str(output_cb, ctx, format_start, *fmt - format_start);
+        chars_written += (*fmt - format_start);
         return chars_written;
     }
     (*fmt)++;
@@ -456,9 +500,11 @@ static int u_parse_format(u_output_cb_t output_cb, void* ctx, const char** fmt, 
             
             if (flags & U_FLAG_ALT_FORM && value != 0) {
                 // Add prefix for octal (shift right and add '0')
-                memmove(buffer + 1, buffer, len + 1);
-                buffer[0] = '0';
-                len++;
+                if (len < UPRINTF_BUFFER_SIZE - 1) {
+                    memmove(buffer + 1, buffer, len + 1);
+                    buffer[0] = '0';
+                    len++;
+                }
             }
             break;
         }
@@ -482,10 +528,12 @@ static int u_parse_format(u_output_cb_t output_cb, void* ctx, const char** fmt, 
             
             if (flags & U_FLAG_ALT_FORM && value != 0) {
                 // Add prefix for hexadecimal
-                memmove(buffer + 2, buffer, len + 1);
-                buffer[0] = '0';
-                buffer[1] = uppercase ? 'X' : 'x';
-                len += 2;
+                if (len < UPRINTF_BUFFER_SIZE - 2) {
+                    memmove(buffer + 2, buffer, len + 1);
+                    buffer[0] = '0';
+                    buffer[1] = uppercase ? 'X' : 'x';
+                    len += 2;
+                }
             }
             break;
         }
@@ -512,8 +560,21 @@ static int u_parse_format(u_output_cb_t output_cb, void* ctx, const char** fmt, 
         
         case 'c': {
             char c = (char)va_arg(*args, int);
+            int padding = width > 1 ? width - 1 : 0;
+            
+            if (!(flags & U_FLAG_LEFT_ALIGN)) {
+                u_output_repeat(output_cb, ctx, ' ', padding);
+                chars_written += padding;
+            }
+            
             output_cb(c, ctx);
             chars_written++;
+            
+            if (flags & U_FLAG_LEFT_ALIGN) {
+                u_output_repeat(output_cb, ctx, ' ', padding);
+                chars_written += padding;
+            }
+            
             return chars_written;
         }
         
@@ -554,10 +615,12 @@ static int u_parse_format(u_output_cb_t output_cb, void* ctx, const char** fmt, 
             len = u_strlen(buffer);
             
             // Add prefix for pointers
-            memmove(buffer + 2, buffer, len + 1);
-            buffer[0] = '0';
-            buffer[1] = 'x';
-            len += 2;
+            if (len < UPRINTF_BUFFER_SIZE - 2) {
+                memmove(buffer + 2, buffer, len + 1);
+                buffer[0] = '0';
+                buffer[1] = 'x';
+                len += 2;
+            }
             break;
         }
         
@@ -569,7 +632,7 @@ static int u_parse_format(u_output_cb_t output_cb, void* ctx, const char** fmt, 
         
         case 'n': {
             int* ptr = va_arg(*args, int*);
-            *ptr = chars_written;
+            if (ptr) *ptr = chars_written;
             return chars_written;
         }
         
@@ -659,13 +722,21 @@ int u_vprintf(u_output_cb_t output_cb, void* ctx, const char* fmt, va_list args)
         }
         
         fmt++; // Skip '%'
-        chars_written += u_parse_format(output_cb, ctx, &fmt, &args);
+        if (!*fmt) break; // Handle trailing '%'
+        
+        int result = u_parse_format(output_cb, ctx, &fmt, &args);
+        if (result < 0) {
+            return result; // Error
+        }
+        chars_written += result;
     }
     
     return chars_written;
 }
 
 int u_printf(u_output_cb_t output_cb, void* ctx, const char* fmt, ...) {
+    if (!output_cb || !fmt) return -1;
+    
     va_list args;
     va_start(args, fmt);
     int result = u_vprintf(output_cb, ctx, fmt, args);
@@ -674,6 +745,8 @@ int u_printf(u_output_cb_t output_cb, void* ctx, const char* fmt, ...) {
 }
 
 int u_register_format_handler(char specifier, u_format_handler_t handler) {
+    if (!handler) return -1;
+    
     for (int i = 0; i < UPRINTF_MAX_HANDLERS; i++) {
         if (u_state.handlers[i].specifier == 0 || u_state.handlers[i].specifier == specifier) {
             u_state.handlers[i].specifier = specifier;
@@ -697,12 +770,18 @@ int u_unregister_format_handler(char specifier) {
 
 // Buffer output functions
 static void buffer_output_cb(char c, void* ctx) {
+    if (!ctx) return;
+    
     char** buffer_ptr = (char**)ctx;
-    **buffer_ptr = c;
-    (*buffer_ptr)++;
+    if (*buffer_ptr) {
+        **buffer_ptr = c;
+        (*buffer_ptr)++;
+    }
 }
 
 int u_sprintf(char* buffer, const char* fmt, ...) {
+    if (!buffer || !fmt) return -1;
+    
     va_list args;
     va_start(args, fmt);
     char* ptr = buffer;
@@ -720,6 +799,8 @@ typedef struct {
 } bounded_ctx_t;
 
 static void bounded_output_cb(char c, void* ctx) {
+    if (!ctx) return;
+    
     bounded_ctx_t* bctx = (bounded_ctx_t*)ctx;
     if (bctx->pos < bctx->size - 1) {
         bctx->buffer[bctx->pos] = c;
@@ -728,17 +809,17 @@ static void bounded_output_cb(char c, void* ctx) {
 }
 
 int u_snprintf(char* buffer, size_t size, const char* fmt, ...) {
-    if (size == 0) return 0;
+    if (!buffer || size == 0 || !fmt) return -1;
     
     va_list args;
     va_start(args, fmt);
     
     bounded_ctx_t ctx = {buffer, size, 0};
-    int result = u_vprintf(bounded_output_cb, &ctx, fmt, args);
+    u_vprintf(bounded_output_cb, &ctx, fmt, args);
     buffer[ctx.pos] = '\0';
     
     va_end(args);
-    return result;
+    return ctx.pos; // Return actual number of characters written
 }
 
 void u_set_locale(const char* locale) {
@@ -758,7 +839,7 @@ void u_set_default_output(u_output_cb_t output_cb, void* ctx) {
 }
 
 int u_printf_simple(const char* fmt, ...) {
-    if (!u_state.default_output_cb) return -1;
+    if (!u_state.default_output_cb || !fmt) return -1;
     
     va_list args;
     va_start(args, fmt);

@@ -1,11 +1,12 @@
 ===============================================================================
-|                           UPRINTF LIBRARY                                  |
+|                           UPRINTF LIBRARY v1.2                              |
 ===============================================================================
 
 Universal platform-independent printf implementation for C.
 
 Author: Ferki
 License: MIT
+Version: 1.2
 
 ------------------------------------------------------------------------------=
 DESCRIPTION:
@@ -20,13 +21,15 @@ Features:
 - Support for flags: '-', '+', ' ', '0', '#'
 - Width and precision specification (including * for both)
 - Length modifiers: h, hh, l, ll, z, t, j
-- Floating point support with configurable precision
+- Floating point support with configurable precision (including NaN, Inf handling)
 - Plugin system for custom format specifiers
 - Buffer functions (sprintf, snprintf)
 - No dynamic memory allocation
 - Header-only implementation
 - Locale support for decimal point
 - Configurable features via preprocessor definitions
+- Enhanced error checking and safety features
+- Bare metal compatible with zero dependencies
 
 ------------------------------------------------------------------------------=
 USAGE:
@@ -71,6 +74,17 @@ Buffer output:
   u_sprintf(buf, "Value: %04x", 255);
   u_snprintf(buf, sizeof(buf), "Trimmed: %.5s", "very long string");
 
+Bare metal example:
+  void uart_putchar(char c, void* ctx) {
+      while (!(USART1->SR & USART_SR_TXE));
+      USART1->DR = c;
+  }
+  
+  void main() {
+      u_set_default_output(uart_putchar, NULL);
+      u_printf_simple("System started: %d\n", 42);
+  }
+
 ------------------------------------------------------------------------------=
 CONFIGURATION:
 ------------------------------------------------------------------------------=
@@ -110,6 +124,27 @@ Note on u_snprintf: This function returns the number of characters actually
 written to the buffer, not the number that would be written if the buffer was
 large enough (unlike standard snprintf).
 
+------------------------------------------------------------------------------=
+VERSION HISTORY:
+------------------------------------------------------------------------------=
+
+v1.2 (Current)
+- Enhanced error checking and null pointer protection
+- Improved floating point handling with NaN and Inf support
+- Fixed u_snprintf return value to match actual written characters
+- Better handling of unknown format specifiers
+- Buffer overflow protection in all conversion functions
+- Additional safety checks throughout the codebase
+
+v1.1
+- Added width support for %c format specifier
+- Fixed various edge cases in format parsing
+- Improved platform independence
+
+v1.0
+- Initial release with basic printf functionality
+
+
 
 ------------------------------------------------------------------------------=
 SUPPORT THE PROJECT
@@ -120,6 +155,7 @@ If you find this library useful, please consider supporting its development:
   [ https://ko-fi.com/ferki ]
 
 Your support helps maintain and improve this software!
+
 
 
 ------------------------------------------------------------------------------=

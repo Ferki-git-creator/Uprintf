@@ -1,0 +1,17 @@
+Running uprintf tests...
+
+✓ Basic output test passed
+✓ Integer formatting tests passed
+✓ Unsigned integer tests passed
+✓ Hexadecimal tests passed
+✓ Octal tests passed
+✓ Character tests passed
+✓ String tests passed
+✓ Pointer tests passed
+✓ Float tests passed
+✓ Length modifier tests passed
+✓ Buffer function tests passed
+✓ Edge case tests passed
+✓ Custom handler tests passed
+
+All tests passed!
